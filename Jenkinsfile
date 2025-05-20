@@ -1,56 +1,43 @@
-
 pipeline {
     agent any
-
+ 
+    environment {
+        VENV = 'venv'
+    }
+ 
     stages {
-        stage('Checkout') {
+        stage ("Install") {
             steps {
-                checkout scm
+                sh '''
+                    python3 -m venv $VENV
+                    . $VENV/bin/activate
+                    pip install --upgrade pip
+                    pip install -r requirements.txt wheel
+                '''
             }
         }
-
-        stage('Setup') {
+        stage ("Lint") {
             steps {
-                sh 'python -m pip install --upgrade pip'
-                sh 'pip install -r requirements.txt'
-            }
-        }
-
-        stage('Lint') {
-            steps {
-                sh 'flake8 app/ tests/'
-            }
-        }
-
-        stage('Test') {
-            steps {
-                sh 'python -m pytest --cov=app tests/'
-            }
-            post {
-                always {
-                    sh 'python -m pytest --cov=app --cov-report=xml tests/'
-                    junit 'pytest-results.xml'// Requires pytest-junit plugin
+                script {
+                    echo "This is my Linting Step"
                 }
             }
         }
-
-        stage('Build') {
+        stage ("Test") {
             steps {
-                sh 'pip install wheel'
-                sh 'python setup.py bdist_wheel'
+                sh '''
+                    . $VENV/bin/activate
+                    pytest --cov=app --junitxml=pytest-results.xml tests/
+                '''
             }
-            post {
-                success {
-                    archiveArtifacts artifacts: 'dist/*.whl', fingerprint: true
+        }
+        stage ("Run Application") {
+            steps {
+                script {
+                    echo "This is my Run applcaition Step"
                 }
             }
         }
-
-        stage('Deploy to Staging') {
-            steps {
-                echo 'Deploying to staging environment...'
-                sh 'mkdir -p staging && cp dist/*.whl staging/'
-            }
-        }
+ 
     }
 }
